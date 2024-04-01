@@ -25,10 +25,27 @@ async def set_up_commands():
     await bot.set_my_commands(bot_commands)
 
 
-# /start
+# Command /start
 @dp.message(Command("start"))
 async def cmd_start(message: types.Message):
-    await message.answer("Hello!")
+    # a basic keyboard in the start menu
+    kb = [
+        [
+            types.KeyboardButton(text='Search by name'),
+            types.KeyboardButton(text='Search by criteria')
+        ],
+        [
+            types.KeyboardButton(text='Recommend me'),
+            types.KeyboardButton(text='My movielist')
+        ]
+    ]
+
+    keyboard = types.ReplyKeyboardMarkup(
+        keyboard=kb,
+        resize_keyboard=True,
+        input_field_placeholder='Choose what do you want to do'
+    )
+    await message.answer("Hello!", reply_markup=keyboard)
 
 
 # start polling
