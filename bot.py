@@ -41,6 +41,19 @@ async def get_recommendation(message: types.Message):
     await message.answer("Choose what you wanna do", reply_markup=get_recommendation_main_menu())
 
 
+# ----- CALLBACK PROCESSING -------
+# Handle recommendation callbacks
+@dp.callback_query(F.data.startswith("recommendation_"))
+async def callbacks_num(callback: types.CallbackQuery):
+    action = callback.data.split("_")[1]
+    if action == "movielist":
+        await callback.message.answer("Due to your movielist")
+    elif action == "similarity":
+        await callback.message.answer("Write a name of the film similar to the future recommendation")
+    if action == "expectation":
+        await callback.message.answer("Write some expectations for the film")
+
+
 # start polling
 async def main():
     await set_up_commands()
