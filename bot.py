@@ -1,9 +1,10 @@
 import asyncio
 import logging
-from aiogram import Dispatcher, types
+from aiogram import Dispatcher, types, F
 from aiogram.filters.command import Command
 
 from Configuration.bot_config import bot
+from ui_elements import get_start_menu
 
 # logging and dispatcher
 logging.basicConfig(level=logging.INFO)
@@ -29,23 +30,7 @@ async def set_up_commands():
 @dp.message(Command("start"))
 async def cmd_start(message: types.Message):
     # a basic keyboard in the start menu
-    kb = [
-        [
-            types.KeyboardButton(text='Search by name'),
-            types.KeyboardButton(text='Search by criteria')
-        ],
-        [
-            types.KeyboardButton(text='Recommend me'),
-            types.KeyboardButton(text='My movielist')
-        ]
-    ]
-
-    keyboard = types.ReplyKeyboardMarkup(
-        keyboard=kb,
-        resize_keyboard=True,
-        input_field_placeholder='Choose what do you want to do'
-    )
-    await message.answer("Hello!", reply_markup=keyboard)
+    await message.answer("Hello!", reply_markup=get_start_menu())
 
 
 # start polling
