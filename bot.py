@@ -1,10 +1,10 @@
 import asyncio
 import logging
-from aiogram import Dispatcher, types, F
+from aiogram import Dispatcher, F
 from aiogram.filters.command import Command
 
 from Configuration.bot_config import bot
-from ui_elements import get_start_menu
+from ui_elements import *
 
 # logging and dispatcher
 logging.basicConfig(level=logging.INFO)
@@ -31,6 +31,14 @@ async def set_up_commands():
 async def cmd_start(message: types.Message):
     # a basic keyboard in the start menu
     await message.answer("Hello!", reply_markup=get_start_menu())
+
+
+# Handle input text (including ReplyKeyboardMarkup button was pressed)
+# Handle Command /recommend OR recommendation button was pressed
+@dp.message(Command("recommend"))
+@dp.message(F.text == 'Recommend me')
+async def get_recommendation(message: types.Message):
+    await message.answer("Choose what you wanna do", reply_markup=get_recommendation_main_menu())
 
 
 # start polling
