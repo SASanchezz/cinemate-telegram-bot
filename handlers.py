@@ -7,6 +7,7 @@ from aiogram.filters import Command, StateFilter
 from aiogram.fsm.context import FSMContext
 
 from Configuration.bot_config import bot
+from AI.ai_manager import recommendation_generator
 from states import Recommendation
 from ui_elements import *
 
@@ -24,7 +25,7 @@ async def cmd_start(message: types.Message):
 # Handle input text (including ReplyKeyboardMarkup button was pressed)
 # Handle Command /recommend OR recommendation button was pressed
 @router.message(Command("recommend"))
-@router.message(F.text == 'Recommend me')
+@router.message(StateFilter(None), F.text == 'Recommend me')
 async def get_recommendation(message: types.Message):
     await message.answer("Choose what you wanna do", reply_markup=get_recommendation_main_menu())
 
@@ -39,19 +40,34 @@ async def callbacks_num(callback: types.CallbackQuery, state: FSMContext):
     elif action == "similarity":
         await callback.message.answer("Write a name of the film similar to the future recommendation")
         # register next step handler with state
-        await state.set_state(Recommendation.message_request)
+        await state.set_state(Recommendation.similarity_request)
     if action == "expectation":
         await callback.message.answer("Write some expectations for the film")
         # register next step handler with state
-        await state.set_state(Recommendation.message_request)
+        await state.set_state(Recommendation.expectation_request)
 
 
 # ----- REGISTER HANDLE NEXT STEPS ------
 # Handle recommendation states
-@router.message(Recommendation.message_request)
+# Handle similarity request
+@router.message(Recommendation.similarity_request)
 async def process_request(message: types.Message, state: FSMContext):
     await state.get_data()
-    print(message.text)
+    film_name = message.text
+    res = await recommendation_generator('similarity', film_name)
+    await message.reply("Wait, please")
+    await message.answer(res)
+    await state.clear()
+
+
+# Handle expectation request
+@router.message(Recommendation.expectation_request)
+async def process_request(message: types.Message, state: FSMContext):
+    await state.get_data()
+    film_name = message.text
+    res = await recommendation_generator('expectations', film_name)
+    await message.reply("Wait, please")
+    await message.answer(res)
     await state.clear()
 
 
