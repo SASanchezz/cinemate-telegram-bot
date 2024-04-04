@@ -1,3 +1,5 @@
+import json
+
 import requests
 import db
 
@@ -155,4 +157,78 @@ async def set_favorite_movie_from_list(user_id, movie_id, is_favorite: int):
         headers=headers
     )
     response = await send_request(set_favorite_movie_from_list_request)
+    return response
+
+
+async def get_movies_by_title(title: str, page: int):
+    url = f"{api_base_url}/movies"
+
+    params = {"search-by": "title",
+              "search-title": title,
+              "page": page}
+
+    headers = {'Content-Type': 'application/json'}
+
+    get_movies_by_title_request = requests.Request(
+        'GET',
+        url=url,
+        params=params,
+        headers=headers
+    )
+    response = await send_request(get_movies_by_title_request)
+    return response
+
+
+async def get_movies_by_filters(page: int, year=None, country=None, genres=[]):
+    url = f"{api_base_url}/movies"
+
+    params = {"search-by": "filters",
+              "page": page,
+              "year": year,
+              "country": country,
+              "with-genres": genres
+              }
+
+    headers = {'Content-Type': 'application/json'}
+
+    get_movies_by_filters_request = requests.Request(
+        'GET',
+        url=url,
+        params=params,
+        headers=headers
+    )
+    response = await send_request(get_movies_by_filters_request)
+    return response
+
+
+async def get_movie_by_id(movie_id: str):
+    url = f"{api_base_url}/movies/{movie_id}"
+
+    get_movies_by_id_request = requests.Request(
+        'GET',
+        url=url
+    )
+    response = await send_request(get_movies_by_id_request)
+    return response
+
+
+async def get_genres():
+    url = f"{api_base_url}/genres"
+
+    get_genres_request = requests.Request(
+        'GET',
+        url=url
+    )
+    response = await send_request(get_genres_request)
+    return response
+
+
+async def get_genres_by_id(genres_id: str):
+    url = f"{api_base_url}/genres/{genres_id}"
+
+    get_genres_by_id_request = requests.Request(
+        'GET',
+        url=url
+    )
+    response = await send_request(get_genres_by_id_request)
     return response

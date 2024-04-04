@@ -70,7 +70,8 @@ async def callbacks_num(callback: types.CallbackQuery):
     action = callback.data.split("_")[1]
 
     if action == "main":
-        await callback.message.answer("Welcome there, choose what you wanna do by pressing a button", reply_markup=get_start_menu())
+        await callback.message.answer("Welcome there, choose what you wanna do by pressing a button",
+                                      reply_markup=get_start_menu())
     elif action == "recommend":
         await get_recommendation(callback.message)
 
@@ -102,12 +103,14 @@ async def process_rec_expectation_request(message: types.Message, state: FSMCont
 # Handle recommendation due to movielist request
 async def process_rec_movielist_request(message: types.Message):
     response = await requests_system.get_movie_list(user_id=message.chat.id)
-    if response is None:
-        await message.answer("Ohh... Your movielist is empty", reply_markup=get_recommendation_additional_menu('movielist'))
+    if response == "[]":
+        await message.answer("Ohh... Your movielist is empty",
+                             reply_markup=get_recommendation_additional_menu('movielist'))
     else:
         res = json.loads(response.text)
         if len(res) == 0:
-             await message.answer("Ohh... Your movielist is empty", reply_markup=get_recommendation_additional_menu('movielist'))
+            await message.answer("Ohh... Your movielist is empty",
+                                 reply_markup=get_recommendation_additional_menu('movielist'))
         else:
             titles = ""
             for r in res:
@@ -152,13 +155,13 @@ async def otp_sent(message: types.Message, state: FSMContext):
 
 
 @router.message(Command("my_movielist"))
-async def my_movielist(message: types.Message, state: FSMContext):
+async def my_movielist(message: types.Message):
     response = await requests_system.get_movie_list(user_id=message.from_user.id)
-    await message.reply(response.text)
+    await message.reply(f"Status code = {response.status_code}.\n{response.text}")
 
 
 @router.message(Command("add"))
-async def add_movie_to_list(message: types.Message, state: FSMContext):
+async def add_movie_to_list(message: types.Message):
     args = message.text.split(' ')
     movie_id = args[1]
     response = await requests_system.add_movie_to_list(user_id=message.from_user.id, movie_id=movie_id)
@@ -166,7 +169,7 @@ async def add_movie_to_list(message: types.Message, state: FSMContext):
 
 
 @router.message(Command("remove"))
-async def remove_movie_to_list(message: types.Message, state: FSMContext):
+async def remove_movie_to_list(message: types.Message):
     args = message.text.split(' ')
     movie_id = args[1]
     response = await requests_system.remove_movie_to_list(user_id=message.from_user.id, movie_id=movie_id)
@@ -174,7 +177,7 @@ async def remove_movie_to_list(message: types.Message, state: FSMContext):
 
 
 @router.message(Command("rate"))
-async def rate_movie_from_list(message: types.Message, state: FSMContext):
+async def rate_movie_from_list(message: types.Message):
     args = message.text.split(' ')
     movie_id = args[1]
     score = args[2]
@@ -183,10 +186,48 @@ async def rate_movie_from_list(message: types.Message, state: FSMContext):
 
 
 @router.message(Command("fav"))
-async def remove_movie_to_list(message: types.Message, state: FSMContext):
+async def remove_movie_to_list(message: types.Message):
     args = message.text.split(' ')
     movie_id = args[1]
     is_favorite = args[2]
     response = await requests_system.set_favorite_movie_from_list(user_id=message.from_user.id, movie_id=movie_id,
                                                                   is_favorite=is_favorite)
     await message.reply(f"Status code = {response.status_code}.\n{response.text}")
+
+
+@router.message(Command("title"))
+async def get_movies_by_title(message: types.Message):
+    args = message.text.split(' ')
+    title = args[1]
+    page = args[2]
+    response = await requests_system.get_movies_by_title(title=title, page=page)
+    await message.reply(f"Status code = {response.status_code}.\n{response.text[:4000]}")
+
+
+@router.message(Command("filters"))
+async def get_movies_by_title(message: types.Message):
+    response = await requests_system.get_movies_by_filters(1, year=2020, genres=[98])
+    await message.reply(f"Status code = {response.status_code}.\n{response.text[:4000]}")
+
+
+@router.message(Command("movie"))
+async def get_movies_by_title(message: types.Message):
+    args = message.text.split(' ')
+    movie_id = args[1]
+    response = await requests_system.get_movie_by_id(movie_id)
+    await message.reply(f"Status code = {response.status_code}.\n{response.text}")
+
+
+@router.message(Command("genres"))
+async def get_genres(message: types.Message):
+    response = await requests_system.get_genres()
+    await message.reply(f"Status code = {response.status_code}.\n{response.text}")
+
+
+@router.message(Command("genresid"))
+async def get_genres(message: types.Message):
+    args = message.text.split(' ')
+    genres_id = args[1]
+    response = await requests_system.get_genres_by_id(genres_id)
+    await message.reply(f"Status code = {response.status_code}.\n{response.text}")
+
