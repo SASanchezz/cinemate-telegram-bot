@@ -1,13 +1,22 @@
 import requests
+from aiogram.fsm.context import FSMContext
+
+from Bot.states import Authorize
+from Configuration.bot_config import bot
 
 # region Authentication
 
 api_base_url = "https://cinemate.space/api/v1"
 
+async def auth(chatID: str, state: FSMContext):
+    await bot.send_message(chatID, "Please, sign up!\nEnter your email:")
+    await state.set_state(Authorize.wait_email)
 
 async def send_request(request: requests.Request) -> requests.Response:
     prepared_request = request.prepare()
     response = requests.Session().send(prepared_request)
+    if response.status_code == 401:
+        pass
     return response
 
 
