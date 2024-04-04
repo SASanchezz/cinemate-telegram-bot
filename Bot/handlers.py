@@ -1,5 +1,6 @@
 import time
 import random
+import json
 import requests_system
 
 from aiogram import F, Router
@@ -39,8 +40,7 @@ async def callbacks_num(callback: types.CallbackQuery, state: FSMContext):
 
     if action == "movielist":
         await callback.message.answer("Wait please, I am analysing your movielist")
-        # register next step handler with state
-        await state.set_state(Recommendation.movielist_request)
+        await process_rec_movielist_request(callback.message)
     elif action == "similarity":
         await callback.message.answer("Write a name of the film similar to the future recommendation")
         # register next step handler with state
@@ -61,8 +61,7 @@ async def callbacks_num(callback: types.CallbackQuery, state: FSMContext):
             await state.set_state(Recommendation.expectation_request)
         else:
             await callback.message.answer("Wait please, I am analysing your movielist")
-            # register next step handler with state
-            await state.set_state(Recommendation.movielist_request)
+            await process_rec_movielist_request(callback.message)
 
 
 # Handle navigation
@@ -80,7 +79,7 @@ async def callbacks_num(callback: types.CallbackQuery):
 # Handle recommendation states
 # Handle similarity request
 @router.message(Recommendation.similarity_request)
-async def process_request(message: types.Message, state: FSMContext):
+async def process_rec_similarity_request(message: types.Message, state: FSMContext):
     await state.get_data()
     film_name = message.text
     await message.reply("Wait, please")
@@ -91,7 +90,7 @@ async def process_request(message: types.Message, state: FSMContext):
 
 # Handle expectation request
 @router.message(Recommendation.expectation_request)
-async def process_request(message: types.Message, state: FSMContext):
+async def process_rec_expectation_request(message: types.Message, state: FSMContext):
     await state.get_data()
     film_name = message.text
     await message.reply("Wait, please")
@@ -100,14 +99,21 @@ async def process_request(message: types.Message, state: FSMContext):
     await state.clear()
 
 
-# Handle expectation request
-@router.message(Recommendation.movielist_request)
-async def process_request(message: types.Message, state: FSMContext):
-    await state.get_data()
-    film_name = message.text
-    res = await recommendation_generator('movielist', film_name)
-    await message.answer(res, reply_markup=get_recommendation_additional_menu('movielist'))
-    await state.clear()
+# Handle recommendation due to movielist request
+async def process_rec_movielist_request(message: types.Message):
+    response = await requests_system.get_movie_list(user_id=message.chat.id)
+    if response is None:
+        await message.answer("Ohh... Your movielist is empty", reply_markup=get_recommendation_additional_menu('movielist'))
+    else:
+        res = json.loads(response.text)
+        if len(res) == 0:
+             await message.answer("Ohh... Your movielist is empty", reply_markup=get_recommendation_additional_menu('movielist'))
+        else:
+            titles = ""
+            for r in res:
+                titles += r["original_title"] + "; "
+            res = await recommendation_generator('movielist', titles)
+            await message.answer(res, reply_markup=get_recommendation_additional_menu('movielist'))
 
 
 async def auth(chatID: str, state: FSMContext):
@@ -144,8 +150,9 @@ async def otp_sent(message: types.Message, state: FSMContext):
         await bot.send_message(message.from_user.id, "Login unsuccessful")
     await state.clear()
 
+
 @router.message(Command("my_movielist"))
-async def cmd_start(message: types.Message, state: FSMContext):
+async def my_movielist(message: types.Message, state: FSMContext):
     response = await requests_system.get_movie_list(user_id=message.from_user.id)
     await message.reply(response.text)
 
