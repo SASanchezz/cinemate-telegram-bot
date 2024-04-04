@@ -22,7 +22,7 @@ def get_start_menu():
     )
 
 
-# recommendation menu (InlineKeyboardMarkup)
+# recommendation main menu (InlineKeyboardMarkup)
 def get_recommendation_main_menu():
     kb = [
         [
@@ -35,7 +35,25 @@ def get_recommendation_main_menu():
             types.InlineKeyboardButton(text='Describe my expectation', callback_data="recommendation_expectation"),
         ],
         [
-            types.InlineKeyboardButton(text='Back', callback_data="back_to_main"),
+            types.InlineKeyboardButton(text='Back', callback_data="back_main"),
+        ]
+    ]
+
+    return types.InlineKeyboardMarkup(
+        inline_keyboard=kb,
+        resize_keyboard=True,
+        one_time_keyboard=True
+    )
+
+
+# recommendation additional menu (InlineKeyboardMarkup)
+def get_recommendation_additional_menu(recommend_type):
+    kb = [
+        [
+            types.InlineKeyboardButton(text='Try again', callback_data=f"recommendation_regenerate_{recommend_type}"),
+        ],
+        [
+            types.InlineKeyboardButton(text='Back', callback_data="back_recommend"),
         ]
     ]
 

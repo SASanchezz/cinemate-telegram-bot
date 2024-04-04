@@ -3,8 +3,9 @@ import logging
 from aiogram import Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
 
-from Configuration.bot_config import bot
-from handlers import router, types
+
+from ..Configuration.bot_config import bot
+from ..Bot.handlers import router, types
 
 
 # list of available commands in bot
