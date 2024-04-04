@@ -20,7 +20,7 @@ router = Router()
 @router.message(Command("start"))
 async def cmd_start(message: types.Message, state: FSMContext):
     # a basic keyboard in the start menu
-    await requests_system.auth(message.from_user.id, state)
+    await auth(message.from_user.id, state)
 
 
 # Handle input text (including ReplyKeyboardMarkup button was pressed)
@@ -110,7 +110,9 @@ async def process_request(message: types.Message, state: FSMContext):
     await state.clear()
 
 
-
+async def auth(chatID: str, state: FSMContext):
+    await bot.send_message(chatID, "Please, sign up!\nEnter your email:")
+    await state.set_state(Authorize.wait_email)
 
 
 @router.message(Authorize.wait_email)
@@ -131,11 +133,18 @@ async def otp_sent(message: types.Message, state: FSMContext):
     await message.answer("Wait, please")
     email = await db.get_user_email(message.from_user.id)
     response = await requests_system.verify_otp(email, message.text)
-    print(response.text)
     if response.status_code == 200:
-        # set token
+        data = response.json()
+        access_token = data.get('accessToken')
+        refresh_token = data.get('refreshToken')
+        await db.set_access_token(message.from_user.id, access_token)
+        await db.set_refresh_token(message.from_user.id, refresh_token)
         await bot.send_message(message.from_user.id, "Login successful")
     else:
         await bot.send_message(message.from_user.id, "Login unsuccessful")
     await state.clear()
 
+@router.message(Command("my_movielist"))
+async def cmd_start(message: types.Message, state: FSMContext):
+    response = await requests_system.get_movie_list(user_id=message.from_user.id)
+    await message.reply(response.text)

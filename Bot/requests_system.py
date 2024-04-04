@@ -1,22 +1,13 @@
 import requests
-from aiogram.fsm.context import FSMContext
-
-from Bot.states import Authorize
-from Configuration.bot_config import bot
+import db
 
 # region Authentication
 
 api_base_url = "https://cinemate.space/api/v1"
 
-async def auth(chatID: str, state: FSMContext):
-    await bot.send_message(chatID, "Please, sign up!\nEnter your email:")
-    await state.set_state(Authorize.wait_email)
-
 async def send_request(request: requests.Request) -> requests.Response:
     prepared_request = request.prepare()
     response = requests.Session().send(prepared_request)
-    if response.status_code == 401:
-        pass
     return response
 
 
@@ -49,4 +40,30 @@ async def verify_otp(email, otp: str):
         headers=headers
     )
     response = await send_request(sign_in_otp_request)
+    return response
+
+
+async def get_movie_list(user_id, is_favorite=None, score=None):
+    url = f"{api_base_url}/movie-list/get-list"
+    access_token = await db.get_access_token(user_id)
+    if access_token is None:
+        return
+
+    data = {"accessToken": access_token}
+
+    if is_favorite is not None:
+        data["isFavorite"] = is_favorite
+
+    if score is not None:
+        data["score"] = score
+
+    headers = {'Content-Type': 'application/json'}
+
+    get_movie_list_request = requests.Request(
+            'POST',
+            url=url,
+            json=data,
+            headers=headers
+        )
+    response = await send_request(get_movie_list_request)
     return response
