@@ -35,16 +35,27 @@ async def get_recommendation(message: types.Message):
 @router.callback_query(F.data.startswith("recommendation_"))
 async def callbacks_num(callback: types.CallbackQuery, state: FSMContext):
     action = callback.data.split("_")[1]
+
     if action == "movielist":
         await callback.message.answer("Due to your movielist")
     elif action == "similarity":
         await callback.message.answer("Write a name of the film similar to the future recommendation")
         # register next step handler with state
         await state.set_state(Recommendation.similarity_request)
-    if action == "expectation":
+    elif action == "expectation":
         await callback.message.answer("Write some expectations for the film")
         # register next step handler with state
         await state.set_state(Recommendation.expectation_request)
+
+    elif action == "regenerate":
+        recommend_type = callback.data.split("_")[2]
+        if recommend_type == "similarity":
+            await callback.message.answer("Write a name of the film similar to the future recommendation")
+            await state.set_state(Recommendation.similarity_request)
+        elif recommend_type == "expectations":
+            await callback.message.answer("Write some expectations for the film")
+            # register next step handler with state
+            await state.set_state(Recommendation.expectation_request)
 
 
 # ----- REGISTER HANDLE NEXT STEPS ------
@@ -54,9 +65,9 @@ async def callbacks_num(callback: types.CallbackQuery, state: FSMContext):
 async def process_request(message: types.Message, state: FSMContext):
     await state.get_data()
     film_name = message.text
-    res = await recommendation_generator('similarity', film_name)
     await message.reply("Wait, please")
-    await message.answer(res)
+    res = await recommendation_generator('similarity', film_name)
+    await message.answer(res, reply_markup=get_recommendation_additional_menu('similarity'))
     await state.clear()
 
 
@@ -65,9 +76,9 @@ async def process_request(message: types.Message, state: FSMContext):
 async def process_request(message: types.Message, state: FSMContext):
     await state.get_data()
     film_name = message.text
-    res = await recommendation_generator('expectations', film_name)
     await message.reply("Wait, please")
-    await message.answer(res)
+    res = await recommendation_generator('expectations', film_name)
+    await message.answer(res, reply_markup=get_recommendation_additional_menu('similarity'))
     await state.clear()
 
 
