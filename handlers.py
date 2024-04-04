@@ -58,6 +58,17 @@ async def callbacks_num(callback: types.CallbackQuery, state: FSMContext):
             await state.set_state(Recommendation.expectation_request)
 
 
+# Handle navigation
+@router.callback_query(F.data.startswith("back_"))
+async def callbacks_num(callback: types.CallbackQuery):
+    action = callback.data.split("_")[1]
+
+    if action == "main":
+        await callback.message.answer("Welcome there, choose what you wanna do by pressing a button", reply_markup=get_start_menu())
+    elif action == "recommend":
+        await get_recommendation(callback.message)
+
+
 # ----- REGISTER HANDLE NEXT STEPS ------
 # Handle recommendation states
 # Handle similarity request
