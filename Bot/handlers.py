@@ -6,8 +6,8 @@ from aiogram import F, Router
 from aiogram.filters import Command, StateFilter
 from aiogram.fsm.context import FSMContext
 
-from Configuration.bot_config import bot
-from AI.ai_manager import recommendation_generator
+from ..Configuration.bot_config import bot
+from ..AI.ai_manager import recommendation_generator
 from states import Recommendation
 from ui_elements import *
 
