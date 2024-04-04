@@ -13,8 +13,10 @@ async def recommendation_generator(recommendation_type, params):
         res = ""
         if recommendation_type == 'similarity':
             content = f"Generate me a list of films similar to {params}"
-        else:
+        elif recommendation_type == 'expectations':
             content = f"Generate me a list of films which will satisfy these expectations: {params}"
+        else:
+            content = f"Generate me a list if i have watched these movies: {params}"
         response_chat = await g4f.ChatCompletion.create_async(
             model=g4f.models.default,
             messages=[{"role": "user", "content": content}],

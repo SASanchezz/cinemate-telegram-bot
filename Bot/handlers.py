@@ -37,7 +37,9 @@ async def callbacks_num(callback: types.CallbackQuery, state: FSMContext):
     action = callback.data.split("_")[1]
 
     if action == "movielist":
-        await callback.message.answer("Due to your movielist")
+        await callback.message.answer("Wait please, I am analysing your movielist")
+        # register next step handler with state
+        await state.set_state(Recommendation.movielist_request)
     elif action == "similarity":
         await callback.message.answer("Write a name of the film similar to the future recommendation")
         # register next step handler with state
@@ -56,6 +58,10 @@ async def callbacks_num(callback: types.CallbackQuery, state: FSMContext):
             await callback.message.answer("Write some expectations for the film")
             # register next step handler with state
             await state.set_state(Recommendation.expectation_request)
+        else:
+            await callback.message.answer("Wait please, I am analysing your movielist")
+            # register next step handler with state
+            await state.set_state(Recommendation.movielist_request)
 
 
 # Handle navigation
@@ -89,7 +95,17 @@ async def process_request(message: types.Message, state: FSMContext):
     film_name = message.text
     await message.reply("Wait, please")
     res = await recommendation_generator('expectations', film_name)
-    await message.answer(res, reply_markup=get_recommendation_additional_menu('similarity'))
+    await message.answer(res, reply_markup=get_recommendation_additional_menu('expectations'))
+    await state.clear()
+
+
+# Handle expectation request
+@router.message(Recommendation.movielist_request)
+async def process_request(message: types.Message, state: FSMContext):
+    await state.get_data()
+    film_name = message.text
+    res = await recommendation_generator('movielist', film_name)
+    await message.answer(res, reply_markup=get_recommendation_additional_menu('movielist'))
     await state.clear()
 
 

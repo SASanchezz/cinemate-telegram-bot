@@ -5,3 +5,4 @@ from aiogram.filters.state import State, StatesGroup
 class Recommendation(StatesGroup):
     similarity_request = State()
     expectation_request = State()
+    movielist_request = State()
