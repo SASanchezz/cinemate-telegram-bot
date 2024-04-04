@@ -148,3 +148,38 @@ async def otp_sent(message: types.Message, state: FSMContext):
 async def cmd_start(message: types.Message, state: FSMContext):
     response = await requests_system.get_movie_list(user_id=message.from_user.id)
     await message.reply(response.text)
+
+
+@router.message(Command("add"))
+async def add_movie_to_list(message: types.Message, state: FSMContext):
+    args = message.text.split(' ')
+    movie_id = args[1]
+    response = await requests_system.add_movie_to_list(user_id=message.from_user.id, movie_id=movie_id)
+    await message.reply(f"Status code = {response.status_code}.\n{response.text}")
+
+
+@router.message(Command("remove"))
+async def remove_movie_to_list(message: types.Message, state: FSMContext):
+    args = message.text.split(' ')
+    movie_id = args[1]
+    response = await requests_system.remove_movie_to_list(user_id=message.from_user.id, movie_id=movie_id)
+    await message.reply(f"Status code = {response.status_code}.\n{response.text}")
+
+
+@router.message(Command("rate"))
+async def rate_movie_from_list(message: types.Message, state: FSMContext):
+    args = message.text.split(' ')
+    movie_id = args[1]
+    score = args[2]
+    response = await requests_system.rate_movie_from_list(user_id=message.from_user.id, movie_id=movie_id, score=score)
+    await message.reply(f"Status code = {response.status_code}.\n{response.text}")
+
+
+@router.message(Command("fav"))
+async def remove_movie_to_list(message: types.Message, state: FSMContext):
+    args = message.text.split(' ')
+    movie_id = args[1]
+    is_favorite = args[2]
+    response = await requests_system.set_favorite_movie_from_list(user_id=message.from_user.id, movie_id=movie_id,
+                                                                  is_favorite=is_favorite)
+    await message.reply(f"Status code = {response.status_code}.\n{response.text}")
