@@ -10,6 +10,7 @@ db = mysql.connector.connect(
 
 cursor = db.cursor()
 
+
 async def set_user_email(user_id, email):
     try:
         cursor.execute("SELECT * FROM Users WHERE user_id = %s", (user_id,))
@@ -70,7 +71,7 @@ async def get_access_token(user_id):
 
         if result:
             access_token = result[0]
-            print("Access token retrieved successfully:", access_token)
+            #print("Access token retrieved successfully:", access_token)
             return access_token
         else:
             print("User not found or access token not set.")
@@ -112,3 +113,47 @@ async def get_refresh_token(user_id):
             return None
     except mysql.connector.Error as error:
         print("Error:", error)
+
+
+async def user_and_token_exist(user_id):
+    access_token = await get_access_token(user_id)
+    return access_token is not None and access_token != ""
+
+
+async def get_user_by_access_token(access_token):
+    try:
+        sql = "SELECT user_id FROM Users WHERE access_token = %s"
+        cursor.execute(sql, (access_token,))
+        result = cursor.fetchone()
+
+        if result:
+            user_id = result[0]
+            print("User found with access token:", user_id)
+            return user_id
+        else:
+            print("User not found with the provided access token.")
+            return None
+
+    except mysql.connector.Error as error:
+        print("Error:", error)
+
+
+# region TEST
+async def delete_user(user_id):
+    try:
+        # Check if the user exists
+        cursor.execute("SELECT * FROM Users WHERE user_id = %s", (user_id,))
+        existing_user = cursor.fetchone()
+
+        if existing_user:
+            # Delete the user
+            sql = "DELETE FROM Users WHERE user_id = %s"
+            cursor.execute(sql, (user_id,))
+            db.commit()
+            print("User deleted successfully.")
+        else:
+            print("User does not exist. Cannot delete.")
+    except mysql.connector.Error as error:
+        print("Error:", error)
+
+# endregion

@@ -19,6 +19,7 @@ router = Router()
 # --------- COMMANDS ----------------------------------
 # Command /start
 @router.message(Command("start"))
+@router.message(Command("login"))
 async def cmd_start(message: types.Message, state: FSMContext):
     # a basic keyboard in the start menu
     await auth(message.from_user.id, state)
@@ -126,15 +127,18 @@ async def auth(chatID: str, state: FSMContext):
 
 @router.message(Authorize.wait_email)
 async def email_sent(message: types.Message, state: FSMContext):
-    await bot.send_message(message.from_user.id,
-                           "A one-time login code password has been sent to the given e-mail address. Please enter it:")
     response = await requests_system.sign_in_otp(message.text)
 
     if response.status_code == 200:
         await db.set_user_email(message.from_user.id, message.text)
         await state.set_state(Authorize.wait_otp)
+        await bot.send_message(message.from_user.id,
+                               "A one-time login code password has been sent to the given e-mail address. "
+                               "Please enter it:")
     else:
         await state.clear()
+        await bot.send_message(message.from_user.id,
+                               "Error")
 
 
 @router.message(Authorize.wait_otp)
@@ -151,11 +155,16 @@ async def otp_sent(message: types.Message, state: FSMContext):
         await bot.send_message(message.from_user.id, "Login successful")
     else:
         await bot.send_message(message.from_user.id, "Login unsuccessful")
+        await db.set_user_email(message.from_user.id, "")
     await state.clear()
 
 
 @router.message(Command("my_movielist"))
 async def my_movielist(message: types.Message):
+    if not await db.user_and_token_exist(message.from_user.id):
+        await requests_system.user_unauthorized(message.from_user.id)
+        return
+
     response = await requests_system.get_movie_list(user_id=message.from_user.id)
     await message.reply(f"Status code = {response.status_code}.\n{response.text}")
 
@@ -206,7 +215,7 @@ async def get_movies_by_title(message: types.Message):
 
 @router.message(Command("filters"))
 async def get_movies_by_title(message: types.Message):
-    response = await requests_system.get_movies_by_filters(1, year=2020, genres=[98])
+    response = await requests_system.get_movies_by_filters(1, year=2020, genres=[99, 35])
     await message.reply(f"Status code = {response.status_code}.\n{response.text[:4000]}")
 
 
@@ -230,4 +239,22 @@ async def get_genres(message: types.Message):
     genres_id = args[1]
     response = await requests_system.get_genres_by_id(genres_id)
     await message.reply(f"Status code = {response.status_code}.\n{response.text}")
+
+
+@router.message(Command("sign_out"))
+async def sign_out(message: types.Message):
+    response = await requests_system.sign_out(user_id=message.from_user.id)
+    await message.reply(f"Status code = {response.status_code}.\n{response.text}")
+
+
+@router.message(Command("clean_user"))
+async def sign_out(message: types.Message):
+    await db.delete_user(message.from_user.id)
+    await message.reply("User deleted")
+
+
+@router.message(Command("break_token"))
+async def sign_out(message: types.Message):
+    await db.set_access_token(message.from_user.id, "eyJhbGciOiJIUzI1NasddaspZCI6Im14c3dUYUE4RzZxUjk0b2QiLCJ0eXAiOiJKV1QifQ.eyJhdWQiOiJasdasdasdaWNhdGVkIiwiZXhwIjoxNzEyODc5MjE2LCJpYXQiOjE3MTIyNzQ0MTasdasdayI6Imh0dHBzOi8veW9zbnZ4dm1lbGZkbGN1b3pkeHguc3VwYWJhc2UuY28vYXV0aC92MSIsInN1YiI6IasdasdaZmI0LTNhOTgtNDdkMi05MTFiLWY0NjA2YmM1MDU2ZCIsImVtYasdasdicG96aGFyb3YyMDAzQGdtYWlsLmNvbSIsInBob25lIjoiIiwiYXBwX21ldGFkYXRhIjp7InByb3ZpZGVyIjoiZW1haWwiLCJwcm92aWRlcnMiOlsiZW1haWwiXX0sInVzasdasdV0YWRhdGEiOnsiZW1haWwiOiJwb3poYXJvdjIwMDNAZ21haWwuY29tIiwiZW1haWxfdmVyaWZpZWQiOmZhbHNlLCJwaG9uZV9sadasdasdZCI6ZmFsc2UsInNwaWNpZmljRmllbGRzIjoidmFsdWUiLCJzdWIiOiJmMDQ3ZGZiNC0zYTk4LTQ3ZDItOTExYi1mNDYwNmJjNTAasdasdasdcm9sZSI6ImF1dGhlbnRpY2F0ZWQiLCJhYWwiOiJhYWwxIiwiYW1yIjpbeyJtZXRob2QiOiJvdHAiLCJ0aWasd3RhbXAiOjE3MTIyNzQ0MTZ9XSwic2Vzc2lvbl9pZCI6ImU3Y2FiOTkxLTk0ZjAtNDY2My05NmNiLTg4ZDkzNTcxZjIzYyIsImlzX2Fub255basdasd6ZmFsc2V9.-oFmOMHSsI2dxOiR3UMDasdasdM-bWPA_HlasdcBtzo")
+    await message.reply("Token is broken")
 
