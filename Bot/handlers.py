@@ -487,6 +487,7 @@ async def get_filter_genre(message: types.Message, state: FSMContext):
     response = await requests_system.get_movies_by_filters(1, year = filter_data['chosen_year'], genres = filter_data['chosen_genre']) 
     movie_list = json.loads(response.text)["results"]
     for mov in movie_list:
+        await message.answer_photo(photo = f'https://image.tmdb.org/t/p/original{mov['poster_path']}')
         await message.answer(f"Title: <b>{mov['title']}</b> ({mov['release_date']})\n"
                              f"Genre: {",".join(list(map(lambda x: x['name'], mov['genres'])))}\n"
                              f"Overview: {mov['overview']}", parse_mode="HTML")
