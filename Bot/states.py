@@ -13,3 +13,8 @@ class MovieSearch(StatesGroup):
 class Authorize(StatesGroup):
     wait_email = State()
     wait_otp = State()
+
+class FilterSteps(StatesGroup):
+    handle_year = State()
+    handle_genre = State()
+    handle_country = State()
