@@ -6,6 +6,9 @@ class Recommendation(StatesGroup):
     similarity_request = State()
     expectation_request = State()
 
+class MovieSearch(StatesGroup):
+    wait_movie_name = State()
+    wait_rate = State()
 
 class Authorize(StatesGroup):
     wait_email = State()

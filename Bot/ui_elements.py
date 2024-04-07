@@ -62,3 +62,26 @@ def get_recommendation_additional_menu(recommend_type):
         resize_keyboard=True,
         one_time_keyboard=True
     )
+
+# MENU for movie information options
+def get_movie_by_name_info_keyboard(movie_id):
+    kb = [
+        [
+            types.InlineKeyboardButton(text='Info', callback_data=f'info_{movie_id}'),
+            types.InlineKeyboardButton(text='Overview', callback_data=f'overview_{movie_id}'),
+            types.InlineKeyboardButton(text='Genres', callback_data=f'genres_{movie_id}'),
+            types.InlineKeyboardButton(text='Rate', callback_data=f'rate_movie_{movie_id}'),
+        ],
+        [
+            types.InlineKeyboardButton(text='Add to movielist', callback_data=f'add_to_movielist_{movie_id}'),
+            types.InlineKeyboardButton(text='Delete from movielist', callback_data=f'delete_from_movielist_{movie_id}')
+        ],
+        [
+            types.InlineKeyboardButton(text='Add to favourites', callback_data=f'add_to_favorite_{movie_id}')
+        ],
+        [
+            types.InlineKeyboardButton(text='Back', callback_data='back_main')
+        ]
+    ]
+
+    return types.InlineKeyboardMarkup(inline_keyboard=kb)

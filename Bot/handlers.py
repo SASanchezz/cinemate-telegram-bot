@@ -10,7 +10,7 @@ from aiogram.fsm.context import FSMContext
 from Configuration.bot_config import bot
 import db
 from AI.ai_manager import recommendation_generator
-from states import Recommendation, Authorize
+from states import Recommendation, Authorize, MovieSearch
 from ui_elements import *
 
 router = Router()
@@ -21,8 +21,218 @@ router = Router()
 @router.message(Command("start"))
 @router.message(Command("login"))
 async def cmd_start(message: types.Message, state: FSMContext):
+    greeting = f"Welcome, {message.from_user.first_name}!"
+    await message.reply(greeting)
     # a basic keyboard in the start menu
     await auth(message.from_user.id, state)
+
+# Command /help
+@router.message(Command("help"))
+async def help_command(message: types.Message):
+    greeting = f"Hey there, {message.from_user.first_name}!"
+
+    commands = [
+        "/start - Start Cinemate",
+        "/help - Get help",
+        "/name_search - Search by name",
+        "/filter_search - Search by criteria",
+        "/recommend - Get recommendation",
+        "/my_movielist - My movielist"
+    ]
+
+    help_message = f"{greeting}\n\nHere are the available commands:\n"
+    help_message += "\n".join(commands)
+    await message.reply(help_message)
+
+# Command /name_search
+@router.message(Command("name_search"))
+@router.message(StateFilter(None), F.text == 'Search by name')
+async def search_by_name(message: types.Message, state: FSMContext):
+    await message.reply("Please enter a title of the movie.")
+    await state.set_state(MovieSearch.wait_movie_name)
+
+@router.message(StateFilter(MovieSearch.wait_movie_name))
+async def process_movie_name(message: types.Message, state: FSMContext):
+    movie_name = message.text
+
+    response = await requests_system.get_movies_by_title(movie_name,1)
+
+    if response.status_code == 200:
+        data = response.json()
+        if data["results"]:
+            movie_info = data["results"][0]
+
+            movie_message = f"Movie '{movie_info['title']}' is found!"
+
+            keyboard = get_movie_by_name_info_keyboard(movie_info['id'])
+
+            await message.reply(movie_message, reply_markup=keyboard)
+        else:
+            await message.reply(f"No movie found with the name '{movie_name}'.")
+    else:
+        await message.reply("Error occurred while searching for the movie.")
+    await state.set_state(None)
+
+#<----> HANDLERS FOR SEARCH BY MOVIE TITLE
+
+# Handle callback queries for movie INFORMATION
+@router.callback_query(F.data.startswith("info_"))
+async def handle_movie_info(callback: types.CallbackQuery):
+    movie_id = callback.data.split("_")[1]
+
+    response = await requests_system.get_movie_by_id(movie_id)
+
+    if response.status_code == 200:
+        movie_info = response.json()
+
+        info_message = f"Title: {movie_info['title']}\n" \
+                       f"Movie for adults: {'Yes' if movie_info['adult'] else 'No'}\n" \
+                       f"Original language: {movie_info['original_language']}\n" \
+                       f"Release date: {movie_info['release_date']}\n" \
+                       f"Popularity: {movie_info['popularity']}\n" \
+                       f"Average voting score: {movie_info['vote_average']}"
+
+        await callback.message.answer(info_message)
+    else:
+        await callback.message.answer("Error occurred while retrieving movie information.")
+
+
+# Handle callback queries for RATING THE MOVIE
+@router.callback_query(F.data.startswith("rate_movie"))
+async def rate_movie(callback: types.CallbackQuery, state: FSMContext):
+    movie_id = callback.data.split("_")[2]
+    user_id = callback.from_user.id
+
+    response = await requests_system.get_movie_list(user_id=user_id)
+    if response.status_code == 200:
+        movie_list = response.json()
+        movie_ids = [movie['id'] for movie in movie_list]
+        if int(movie_id) not in movie_ids:
+            await callback.answer("You can only rate movies that are in your movie list.")
+            return
+
+    await callback.message.answer("Please enter your rating for this movie (1-10):")
+    await state.set_state(MovieSearch.wait_rate)
+    await state.update_data(movie_id=movie_id)
+
+
+@router.message(StateFilter(MovieSearch.wait_rate))
+async def handle_rating(message: types.Message, state: FSMContext):
+    rating = message.text
+
+    try:
+        rating = int(rating)
+        if rating < 1 or rating > 10:
+            raise ValueError
+    except ValueError:
+        await message.answer("Invalid rating. Please enter a number between 1 and 10.")
+        return
+
+    state_data = await state.get_data()
+    movie_id = state_data.get("movie_id")
+
+    response = await requests_system.rate_movie_from_list(user_id=message.from_user.id, movie_id=movie_id, score=rating)
+
+    if response.status_code == 200:
+        await message.answer("Rating submitted successfully!")
+    else:
+        await message.answer("Failed to submit rating. Please try again later.")
+
+    await state.set_state(None)
+
+# Handle callback queries for ADD TO MOVIELIST
+@router.callback_query(F.data.startswith("add_to_movielist"))
+async def add_to_movielist(callback: types.CallbackQuery, state: FSMContext):
+    movie_id = callback.data.split('_')[3]
+    user_id = callback.from_user.id
+
+    response = await requests_system.add_movie_to_list(user_id, movie_id)
+
+    if response is not None and response.status_code == 200:
+        await callback.answer("Movie successfully added to movielist.")
+    else:
+        await callback.answer("Failed to add the movie to movielist. Please try again later.")
+
+# Handle callback queries ADD TO FAVORITE
+@router.callback_query(F.data.startswith("add_to_favorite"))
+async def add_to_favorite(callback: types.CallbackQuery, state: FSMContext):
+    movie_id = callback.data.split("_")[3]
+
+    response = await requests_system.get_movie_list(user_id=callback.from_user.id)
+    if response.status_code == 200:
+        movielist = response.json()
+        if any(movie["id"] == int(movie_id) for movie in movielist):
+            response_favorite = await requests_system.set_favorite_movie_from_list(user_id=callback.from_user.id,
+                                                                                    movie_id=movie_id,
+                                                                                    is_favorite=True)
+            if response_favorite.status_code == 200:
+                await callback.answer("Added to favourites")
+            else:
+                await callback.answer("Failed to add to favourites. Please try again later.")
+        else:
+            await callback.answer("You can't add to favorites a movie that is not in your movielist.")
+    else:
+        await callback.answer("Failed to fetch your movielist. Please try again later.")
+
+# Handle callback queries for movie OVERVIEW
+@router.callback_query(F.data.startswith("overview_"))
+async def handle_movie_overview(callback: types.CallbackQuery):
+    movie_id = callback.data.split("_")[1]
+
+    response = await requests_system.get_movie_by_id(movie_id)
+
+    if response.status_code == 200:
+        movie_info = response.json()
+
+        await callback.message.answer(f"Overview: {movie_info['overview']}")
+    else:
+        await callback.message.answer("Error occurred while retrieving movie overview.")
+
+# Handle callback queries for movie GENRES
+@router.callback_query(F.data.startswith("genres_"))
+async def handle_movie_genres(callback: types.CallbackQuery):
+    movie_id = callback.data.split("_")[1]
+
+    response = await requests_system.get_movie_by_id(movie_id)
+
+    if response.status_code == 200:
+        movie_info = response.json()
+
+        genres = [genre['name'] for genre in movie_info['genres']]
+
+        await callback.message.answer(f"Genres: {', '.join(genres)}")
+    else:
+        await callback.message.answer("Error occurred while retrieving movie genres.")
+
+
+# Handle callback queries for DELETE FROM MOVIELIST
+@router.callback_query(F.data.startswith("delete_from_movielist"))
+async def delete_from_movielist(callback: types.CallbackQuery, state: FSMContext):
+    movie_id = callback.data.split("_")[3]
+    user_id = callback.from_user.id
+
+    try:
+        movie_id = int(movie_id)
+    except ValueError:
+        await callback.answer("Invalid movie ID.")
+        return
+
+    response = await requests_system.get_movie_list(user_id=user_id)
+    if response.status_code == 200:
+        movie_list = response.json()
+        movie_ids = [movie['id'] for movie in movie_list]
+        if movie_id not in movie_ids:
+            await callback.answer("The movie is not in the list.")
+            return
+
+    response = await requests_system.remove_movie_to_list(user_id=user_id, movie_id=movie_id)
+    if response.status_code == 200:
+        await callback.answer("Movie removed from your movie list.")
+    else:
+        await callback.answer("Failed to remove movie from your movie list. Please try again later.")
+
+
+#HANDLERS FOR SEARCH BY MOVIE TITLE END <---->
 
 
 # Handle input text (including ReplyKeyboardMarkup button was pressed)
@@ -31,7 +241,6 @@ async def cmd_start(message: types.Message, state: FSMContext):
 @router.message(StateFilter(None), F.text == 'Recommend me')
 async def get_recommendation(message: types.Message):
     await message.answer("Choose what you wanna do", reply_markup=get_recommendation_main_menu())
-
 
 # ----- CALLBACK PROCESSING -------
 # Handle recommendation callbacks
@@ -71,7 +280,7 @@ async def callbacks_num(callback: types.CallbackQuery):
     action = callback.data.split("_")[1]
 
     if action == "main":
-        await callback.message.answer("Welcome there, choose what you wanna do by pressing a button",
+        await callback.message.answer("Hi there, choose what you wanna do by pressing a button",
                                       reply_markup=get_start_menu())
     elif action == "recommend":
         await get_recommendation(callback.message)
@@ -160,14 +369,31 @@ async def otp_sent(message: types.Message, state: FSMContext):
 
 
 @router.message(Command("my_movielist"))
+@router.message(StateFilter(None), F.text == 'My movielist')
 async def my_movielist(message: types.Message):
     if not await db.user_and_token_exist(message.from_user.id):
         await requests_system.user_unauthorized(message.from_user.id)
         return
 
     response = await requests_system.get_movie_list(user_id=message.from_user.id)
-    await message.reply(f"Status code = {response.status_code}.\n{response.text}")
 
+    if response.status_code == 200:
+        movie_list = response.json()
+        if movie_list:
+            movie_info_list = []
+            for movie in movie_list:
+                movie_info = movie["original_title"]
+                if movie["score"] is not None:
+                    movie_info += f", your score: {movie['score']}"
+                if movie["is_favorite"]:
+                    movie_info += " ❤️"
+                movie_info_list.append(movie_info)
+            movie_info_text = "\n".join(movie_info_list)
+            await message.reply(movie_info_text)
+        else:
+            await message.reply("Your movie list is empty.")
+    else:
+        await message.reply("Error occurred while fetching your movie list.")
 
 @router.message(Command("add"))
 async def add_movie_to_list(message: types.Message):
