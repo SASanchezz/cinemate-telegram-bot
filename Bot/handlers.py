@@ -10,7 +10,7 @@ from aiogram.fsm.context import FSMContext
 from Configuration.bot_config import bot
 import db
 from AI.ai_manager import recommendation_generator
-from states import Recommendation, Authorize, MovieSearch
+from states import Recommendation, Authorize, MovieSearch, FilterSteps
 from ui_elements import *
 
 router = Router()
@@ -439,10 +439,59 @@ async def get_movies_by_title(message: types.Message):
     await message.reply(f"Status code = {response.status_code}.\n{response.text[:4000]}")
 
 
-@router.message(Command("filters"))
-async def get_movies_by_title(message: types.Message):
-    response = await requests_system.get_movies_by_filters(1, year=2020, genres=[99, 35])
-    await message.reply(f"Status code = {response.status_code}.\n{response.text[:4000]}")
+@router.message(Command("filter_search"))
+@router.message(StateFilter(None), F.text == 'Search by criteria')
+async def get_movies_by_filters(message: types.Message, state: FSMContext):
+    await message.answer(
+        text="Enter year:"
+    )
+    await state.set_state(FilterSteps.handle_year)
+
+
+@router.message(FilterSteps.handle_year)
+async def get_filter_year(message: types.Message, state: FSMContext):
+    await state.update_data(chosen_year=message.text)
+    response_genre = await requests_system.get_genres() 
+    all_genres = json.loads(response_genre.text)
+    joined_genres = ", ".join(list(map(lambda x: x["name"],all_genres)))
+    await message.answer(
+        text=f"Enter genre from the list below:\n\n{joined_genres}"
+    )
+    await state.set_state(FilterSteps.handle_genre)
+
+
+@router.message(FilterSteps.handle_genre)
+async def get_filter_genre(message: types.Message, state: FSMContext):
+    response_genre = await requests_system.get_genres() 
+    all_genres = json.loads(response_genre.text)
+    selected_genre = list(filter(lambda x: x["name"] == message.text,all_genres))
+    joined_genres = ", ".join(list(map(lambda x: x["name"],all_genres)))
+    selected_genre_id = None
+    if len(selected_genre) > 0:
+        selected_genre_id = selected_genre[0]["id"]
+    else:
+        await message.answer(
+            text=f"Genre {message.text} not found.\n\nPlease enter genre from the list below:\n\n{joined_genres}"
+        )
+        return
+
+    await state.update_data(chosen_genre=[selected_genre_id])
+
+    filter_data = await state.get_data()
+    await message.answer(
+        text=f"You have chose {filter_data['chosen_year']}, {message.text}"
+    )
+    response = await requests_system.get_movies_by_filters(1, year = filter_data['chosen_year'], genres = filter_data['chosen_genre']) 
+    movie_list = json.loads(response.text)["results"]
+    for mov in movie_list:
+        await message.answer(f"Title: <b>{mov['title']}</b> ({mov['release_date']})\n"
+                             f"Genre: {",".join(list(map(lambda x: x['name'], mov['genres'])))}\n"
+                             f"Overview: {mov['overview']}", parse_mode="HTML")
+    
+    if len(movie_list) == 0:
+        await message.answer("No movies found.")
+
+    await state.clear()
 
 
 @router.message(Command("movie"))
