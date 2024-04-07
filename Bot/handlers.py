@@ -447,10 +447,14 @@ async def get_movies_by_filters(message: types.Message, state: FSMContext):
     )
     await state.set_state(FilterSteps.handle_year)
 
-
 @router.message(FilterSteps.handle_year)
 async def get_filter_year(message: types.Message, state: FSMContext):
-    await state.update_data(chosen_year=message.text)
+    chosen_year = message.text
+    if not chosen_year.isdigit() or int(chosen_year) < 1900 or int(chosen_year) > 2100:
+        await message.answer("Invalid year. Please enter a valid year:")
+        return 
+
+    await state.update_data(chosen_year=chosen_year)
     response_genre = await requests_system.get_genres() 
     all_genres = json.loads(response_genre.text)
     joined_genres = ", ".join(list(map(lambda x: x["name"],all_genres)))
@@ -458,7 +462,6 @@ async def get_filter_year(message: types.Message, state: FSMContext):
         text=f"Enter genre from the list below:\n\n{joined_genres}"
     )
     await state.set_state(FilterSteps.handle_genre)
-
 
 @router.message(FilterSteps.handle_genre)
 async def get_filter_genre(message: types.Message, state: FSMContext):
