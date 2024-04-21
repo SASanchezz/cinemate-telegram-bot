@@ -231,6 +231,25 @@ async def delete_from_movielist(callback: types.CallbackQuery, state: FSMContext
     else:
         await callback.answer("Failed to remove movie from your movie list. Please try again later.")
 
+# Handle callback queries for SEARCH BY FILTERS
+@router.callback_query(F.data.startswith("filter_"))
+async def handle_movie_filter(callback: types.CallbackQuery):
+    movie_id = callback.data.split("_")[1]
+
+    response = await requests_system.get_movie_by_id(movie_id)
+
+    if response.status_code == 200:
+        movie_info = response.json()
+        info_message = f"Title: {movie_info['title']} ({movie_info['release_date']})\n" \
+                       f"Genre: {', '.join([genre['name'] for genre in movie_info['genres']])}\n" \
+                       f"Overview: {movie_info['overview']}"
+      
+        keyboard = get_movie_by_name_info_keyboard(movie_info['id'])
+        await callback.message.answer_photo(photo=f'https://image.tmdb.org/t/p/original{movie_info["poster_path"]}')
+        await callback.message.answer(info_message, reply_markup=keyboard)
+        
+    else:
+        await callback.message.answer("Error occurred while retrieving movie information.")
 
 #HANDLERS FOR SEARCH BY MOVIE TITLE END <---->
 
@@ -467,36 +486,35 @@ async def get_filter_year(message: types.Message, state: FSMContext):
 async def get_filter_genre(message: types.Message, state: FSMContext):
     response_genre = await requests_system.get_genres() 
     all_genres = json.loads(response_genre.text)
-    selected_genre = list(filter(lambda x: x["name"] == message.text,all_genres))
-    joined_genres = ", ".join(list(map(lambda x: x["name"],all_genres)))
-    selected_genre_id = None
-    if len(selected_genre) > 0:
-        selected_genre_id = selected_genre[0]["id"]
-    else:
+    selected_genres = [genre["id"] for genre in all_genres if genre["name"] in message.text]
+    
+    if not selected_genres:
+        joined_genres = ", ".join([genre["name"] for genre in all_genres])
         await message.answer(
-            text=f"Genre {message.text} not found.\n\nPlease enter genre from the list below:\n\n{joined_genres}"
+            text=f"None of the entered genres were found.\n\nPlease enter genres from the list below:\n\n{joined_genres}"
         )
         return
 
-    await state.update_data(chosen_genre=[selected_genre_id])
+    await state.update_data(chosen_genre=selected_genres)
 
     filter_data = await state.get_data()
+    selected_genres_names = [genre["name"] for genre in all_genres if genre["id"] in filter_data['chosen_genre']]
+    joined_genres_names = " ".join(selected_genres_names)
+
     await message.answer(
-        text=f"You have chose {filter_data['chosen_year']}, {message.text}"
+        text=f"You have chosen {filter_data['chosen_year']}, {joined_genres_names}" 
     )
-    response = await requests_system.get_movies_by_filters(1, year = filter_data['chosen_year'], genres = filter_data['chosen_genre']) 
-    movie_list = json.loads(response.text)["results"]
-    for mov in movie_list:
-        await message.answer_photo(photo = f'https://image.tmdb.org/t/p/original{mov['poster_path']}')
-        await message.answer(f"Title: <b>{mov['title']}</b> ({mov['release_date']})\n"
-                             f"Genre: {",".join(list(map(lambda x: x['name'], mov['genres'])))}\n"
-                             f"Overview: {mov['overview']}", parse_mode="HTML")
     
-    if len(movie_list) == 0:
+    response = await requests_system.get_movies_by_filters(1, year=filter_data['chosen_year'], genres=filter_data['chosen_genre']) 
+    movie_list = json.loads(response.text)["results"]
+
+    keyboard = list(map(lambda item: [types.InlineKeyboardButton(text= item['title'], callback_data=f'filter_{item['id']}')], movie_list))
+    await message.answer(f'{len(movie_list)} movies found', reply_markup=types.InlineKeyboardMarkup(inline_keyboard=keyboard))
+
+    if not movie_list:
         await message.answer("No movies found.")
 
     await state.clear()
-
 
 @router.message(Command("movie"))
 async def get_movies_by_title(message: types.Message):
