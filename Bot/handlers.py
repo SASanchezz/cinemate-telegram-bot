@@ -80,6 +80,11 @@ async def choose_movie(callback: types.CallbackQuery, state: FSMContext):
     movie_id = callback.data.split("_")[2]
     user_id = callback.from_user.id
     keyboard = await get_movie_by_name_info_keyboard(movie_id,user_id)
+
+    response = await requests_system.get_movie_by_id(movie_id)
+    if response.status_code == 200:
+        movie_info = response.json()
+        await callback.message.answer_photo(photo=f'https://image.tmdb.org/t/p/original{movie_info["poster_path"]}')
     await callback.message.answer("Please choose an action for the selected movie:", reply_markup=keyboard)
 
 #Pages for menu
